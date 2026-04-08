@@ -1,0 +1,11 @@
+{
+    "java.project.referencedLibraries": [
+        "c:\\Users\\mecha\\Desktop\\libSPP\\libSPP.jar",
+        "c:\\Users\\mecha\\Desktop\\prog2\\prog2\\libSPP.jar"
+    ],
+    "java.project.sourcePaths": [
+        "."
+    ],
+    "jdk.runConfig.env": "libSPP.jar",
+    
+}
