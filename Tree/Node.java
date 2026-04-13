@@ -93,6 +93,7 @@ public class Node {
     }
 
     public Node getCar() {
+        //System.out.println("Called: " + this.getClass().getName());
         System.err.println("Error: argument of car is not a pair");
         return Nil.getInstance();
     }

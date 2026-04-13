@@ -92,27 +92,39 @@ public class Cons extends Node {
 	public Node eval(Environment env) {
 		//System.out.println("DEBUG operator: " + car.getName());
 		if (form instanceof Define) {
-        // (define name expr)
-        Node target = cdr.getCar();
-        Node rest = cdr.getCdr();
-		// function definition case: (define (f params) body)
-		if (target.isPair()) {
-			
-			Node functionName = target.getCar();
-			Node params = target.getCdr();
-			Node body = rest;
-			Node Lambda = new Cons(new Ident("lambda"), new Cons(params, body));
 
-			Node closure = Lambda.eval(env);
-			env.define(functionName, closure);
-			return functionName;
-		} else {
-			//normal (define x 5) case
-			Node value = rest.getCar().eval(env);
-			env.define(target, value);
-			return target;
-		}
-    } 
+    Node target = cdr.getCar();
+    Node rest = cdr.getCdr();
+			
+    // (define (f params) body)
+    if (target.isPair()) {
+
+        Node functionName = target.getCar();
+        Node params = target.getCdr();
+        Node body = rest;
+
+        Node lambdaExpr =
+            new Cons(
+                new Ident("lambda"),
+                new Cons(params, body)
+            );
+
+        Node closure = lambdaExpr.eval(env);
+        env.define(functionName, closure);
+        return functionName;
+    }
+
+    // (define x expr)
+	if (!rest.isPair()) {
+    System.err.println("Error: malformed define");
+    return Nil.getInstance();
+	}
+    //System.out.println("here");
+    Node value = rest.getCar().eval(env);
+    env.define(target, value);
+
+    return target;
+}
     else if (form instanceof Set) {
         // (set! name expr)
         Node nameNode = cdr.getCar();
@@ -126,23 +138,51 @@ public class Cons extends Node {
         return new Closure(this, env);
     } 
     else if (form instanceof If) {
-        Node test = cdr.getCar().eval(env);
-        Node conseq = cdr.getCdr().getCar();
-        Node alt = cdr.getCdr().getCdr().getCar();
-        return (!test.isNil()) ? conseq.eval(env) : alt.eval(env);
-    } 
-    else if (form instanceof Quote) {
-        return cdr.getCar(); // just return the quoted expression
-    } 
-    else if (form instanceof Begin) {
-        Node result = Nil.getInstance();
-        Node exprs = cdr;
-        while (!exprs.isNil()) {
-            result = exprs.getCar().eval(env);
-            exprs = exprs.getCdr();
-        }
-        return result;
+
+    Node rest1 = cdr.getCdr();
+    Node rest2 = rest1.getCdr();
+
+    if (!rest1.isPair() || !rest2.isPair()) {
+        System.err.println("Error: malformed if expression");
+        return Nil.getInstance();
     }
+
+    Node test = cdr.getCar().eval(env);
+    Node conseq = rest1.getCar();
+    Node alt = rest2.getCar();
+
+    return (!test.isNil()) ? conseq.eval(env) : alt.eval(env);
+}
+    else  if (form instanceof Quote) {
+		//System.out.println("CAR = " + car.getName());
+		//System.out.println("FORM = " + form.getClass());
+    Node quoted = cdr;
+    if (quoted.isNil()) {
+        System.err.println("Error: quote missing argument");
+        return Nil.getInstance();
+    }
+    return quoted.getCar();
+	}
+    else if (form instanceof Begin) {
+
+    Node exprs = cdr;
+    Node result = Nil.getInstance();
+
+    while (exprs.isPair()) {
+        result = exprs.getCar().eval(env);
+        exprs = exprs.getCdr();
+    }
+
+    if (!exprs.isNil()) {
+        System.err.println("Error: malformed begin expression");
+    }
+
+    return result;
+}else if (form instanceof Let) {
+		return handleLet(env);
+	} else if (form instanceof Cond) {
+    	return handleCond(env);
+	}	
     else {
         // Regular function application
         Node operatorNode = car.eval(env);
@@ -155,8 +195,98 @@ public class Cons extends Node {
         return operatorNode.apply(argument);
     }
 	}
-	public Node evalList(Node list, Environment env) {
-        if (list.isNil()) return Nil.getInstance();
-        return new Cons(list.getCar().eval(env), evalList(list.getCdr(), env));
+public Node evalList(Node list, Environment env) {
+
+    if (list.isNil()) {
+        return Nil.getInstance();
     }
+
+    if (!list.isPair()) {
+        System.err.println("ERROR: malformed list in evalList: " + list);
+        Thread.dumpStack();
+        return Nil.getInstance();
+    }
+
+    Node car = list.getCar().eval(env);
+    Node cdr = evalList(list.getCdr(), env);
+
+    return new Cons(car, cdr);
+}
+	private Node handleLet(Environment env) {
+
+    // (let ((x 1) (y 2)) body...)
+
+    Node bindings = cdr.getCar();   // ((x 1) (y 2))
+    Node body = cdr.getCdr();       // body expressions
+
+    Environment newEnv = new Environment(env);
+
+    // Step 1: evaluate bindings
+    while (!bindings.isNil()) {
+
+        Node bind = bindings.getCar();   // (x 1)
+
+        Node name = bind.getCar();
+        Node valueExpr = bind.getCdr().getCar();
+
+        Node value = valueExpr.eval(env);
+
+        newEnv.define(name, value);
+
+        bindings = bindings.getCdr();
+    }
+
+    // Step 2: evaluate body in new environment
+    Node result = Nil.getInstance();
+    Node exprs = body;
+
+    while (!exprs.isNil()) {
+        result = exprs.getCar().eval(newEnv);
+        exprs = exprs.getCdr();
+    }
+
+    return result;
+}
+private Node handleCond(Environment env) {
+
+    Node clauses = cdr;
+
+    while (!clauses.isNil()) {
+
+        Node clause = clauses.getCar();   // (test expr...)
+
+        Node test = clause.getCar();
+
+        // check for else
+        boolean isElse =
+            test.isSymbol() &&
+            test.getName().equalsIgnoreCase("else");
+
+        Node testResult;
+
+        if (isElse) {
+            testResult = BooleanLit.getInstance(true);
+        } else {
+            testResult = test.eval(env);
+        }
+
+        if (!testResult.isNil()) {
+
+            // evaluate all expressions in clause, return last
+            Node exprs = clause.getCdr();
+            Node result = Nil.getInstance();
+
+            while (!exprs.isNil()) {
+                result = exprs.getCar().eval(env);
+                exprs = exprs.getCdr();
+            }
+
+            return result;
+        }
+
+        clauses = clauses.getCdr();
+    }
+
+    return Nil.getInstance();
+}
 }

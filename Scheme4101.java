@@ -88,6 +88,7 @@ public class Scheme4101 {
 		root = parser.parseExp();
 		while (root != null) {
 			Node result = root.eval(env);
+			//System.out.println(result.getClass());
 			if (result != null) {
 				result.print(0);
 			}
