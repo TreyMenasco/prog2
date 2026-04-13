@@ -43,3 +43,4 @@ You can then compile and run your code using
 
     javac -g *.java */*.java
     java Scheme4101
+hello
