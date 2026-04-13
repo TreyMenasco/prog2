@@ -88,7 +88,7 @@ public class Environment extends Node {
 	public Node lookup(Node id) {
 		Node val = find(id, scope);
 		if (val == null && env == null) {
-			System.out.println("undefined variable");
+			System.out.println("undefined variable: " + id.getName());
 			return Nil.getInstance();
 		} else if (val == null)
 			// look up the identifier in the enclosing scope
@@ -125,7 +125,7 @@ public class Environment extends Node {
 			env.assign(id, val);
 		} else {
 			// if we don't find the name, it is an error
-			System.out.println("undefined variable");
+			System.out.println("undefined variable: " + id.getName());
 		}
 
 	}

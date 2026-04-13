@@ -70,12 +70,12 @@ public class Scheme4101 {
 			InputStream iniStream = new FileInputStream(ini_file);
 			Scanner iniScanner = new Scanner(iniStream);
 			Parser iniParser = new Parser(iniScanner);
-			Node iniRoot = iniParser.parseExp();
+			
 
-			Node expression = iniRoot;
-			while (expression.isPair()) {
-				expression.getCar().eval(env);
-				expression = expression.getCdr();
+			Node expression = iniParser.parseExp();
+			while (expression != null) {
+				expression.eval(env);
+				expression = iniParser.parseExp();
 			} 
 		}catch (Exception e) {
     		System.err.println("Error loading " + ini_file + ": " + e);

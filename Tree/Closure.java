@@ -56,17 +56,23 @@ public class Closure extends Node {
          // 3. Bind each parameter to the corresponding argument
         Node p = params;
         Node a = args;
-        while (p.isPair() && a.isPair()) {
+        while (p.isPair()) {
+            if (a.isNil()) {
+                System.out.println("Error: too few arguments");
+                return Nil.getInstance();
+            }
             newEnv.define(p.getCar(), a.getCar());
             p = p.getCdr();
             a = a.getCdr();
         }
-
-        // Check for mismatched number of args vs parameters
-        if (!p.isNil() || !a.isNil()) {
-            System.out.println("Error: wrong number of arguments");
+        if (p.isSymbol()) {
+            newEnv.define(p, a);
+        } else if(!a.isNil()) {
+            System.out.println("Error: too many arguments");
             return Nil.getInstance();
         }
+        // Check for mismatched number of args vs parameters
+        
 
         // 4. Evaluate the function body in the new environment
         // If the body is a sequence of expressions, evaluate each and return the last

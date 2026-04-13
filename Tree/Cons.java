@@ -90,13 +90,28 @@ public class Cons extends Node {
 	}
 	
 	public Node eval(Environment env) {
+		//System.out.println("DEBUG operator: " + car.getName());
 		if (form instanceof Define) {
         // (define name expr)
-        Node nameNode = cdr.getCar();
-        Node valueNode = cdr.getCdr().getCar();
-        Node value = valueNode.eval(env);
-        env.define(nameNode, value);
-        return nameNode;
+        Node target = cdr.getCar();
+        Node rest = cdr.getCdr();
+		// function definition case: (define (f params) body)
+		if (target.isPair()) {
+			
+			Node functionName = target.getCar();
+			Node params = target.getCdr();
+			Node body = rest;
+			Node Lambda = new Cons(new Ident("lambda"), new Cons(params, body));
+
+			Node closure = Lambda.eval(env);
+			env.define(functionName, closure);
+			return functionName;
+		} else {
+			//normal (define x 5) case
+			Node value = rest.getCar().eval(env);
+			env.define(target, value);
+			return target;
+		}
     } 
     else if (form instanceof Set) {
         // (set! name expr)
