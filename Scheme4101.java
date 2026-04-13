@@ -1,5 +1,3 @@
-// Scheme4101 -- The main program of the Scheme interpreter.
-
 import Parse.Scanner;
 import java.io.FileInputStream;
 import java.io.InputStream;
@@ -10,89 +8,89 @@ import Tree.*;
 
 public class Scheme4101 {
 
-	private static Environment env = null;
+    private static Environment env = null;
+    private static final String prompt = "Scheme4101> ";
+    private static final String ini_file = "C:\\Users\\mecha\\Desktop\\prog2\\prog2\\ini.scm";
 
-	 private static final String prompt = "Scheme4101> ";
-	// private static final String prompt = "> ";
+    public static void main(String argv[]) {
 
-	 private static final String ini_file = "C:\\Users\\mecha\\Desktop\\prog2\\prog2\\ini.scm";
+        Scanner scanner = new Scanner(System.in);
 
-	public static void main(String argv[]) {
+        // Debug mode
+        if (argv.length > 1 ||
+            (argv.length == 1 && !argv[0].equals("-d"))) {
+            System.err.println("Usage: java Scheme4101 [-d]");
+            System.exit(1);
+        }
 
-		// Create scanner that reads from standard input
-		Scanner scanner = new Scanner(System.in);
+        if (argv.length == 1 && argv[0].equals("-d")) {
+            Token tok = scanner.getNextToken();
+            while (tok != null) {
+                TokenType tt = tok.getType();
 
-		if (argv.length > 1 ||
-				(argv.length == 1 && !argv[0].equals("-d"))) {
-			System.err.println("Usage: java Scheme4101 [-d]");
-			System.exit(1);
-		}
+                System.out.print(tt.name());
+                if (tt == TokenType.INT)
+                    System.out.println(", intVal = " + tok.getIntVal());
+                else if (tt == TokenType.STRING)
+                    System.out.println(", strVal = " + tok.getStrVal());
+                else if (tt == TokenType.IDENT)
+                    System.out.println(", name = " + tok.getName());
+                else
+                    System.out.println();
 
-		// If command line option -d is provided, debug the scanner
-		if (argv.length == 1 && argv[0].equals("-d")) {
+                tok = scanner.getNextToken();
+            }
+            System.exit(0);
+        }
 
-			Token tok = scanner.getNextToken();
-			while (tok != null) {
-				TokenType tt = tok.getType();
+        Parser parser = new Parser(scanner);
 
-				System.out.print(tt.name());
-				if (tt == TokenType.INT)
-					System.out.println(", intVal = " + tok.getIntVal());
-				else if (tt == TokenType.STRING)
-					System.out.println(", strVal = " + tok.getStrVal());
-				else if (tt == TokenType.IDENT)
-					System.out.println(", name = " + tok.getName());
-				else
-					System.out.println();
+        // ✅ Create environment ONCE
+        env = new Environment();
 
-				tok = scanner.getNextToken();
-			}
-			System.exit(0);
-		}
+        // ✅ Add built-ins
+        BuiltIn.addBuiltIns(env);
+        BuiltIn.setGlobalEnv(env);
 
-		// Create parser
-		Parser parser = new Parser(scanner);
-		Node root;
+        // ✅ Load ini.scm properly
+        try {
+            InputStream iniStream = new FileInputStream(ini_file);
+            Scanner iniScanner = new Scanner(iniStream);
+            Parser iniParser = new Parser(iniScanner);
 
-		
-		// create the top-level environment
+            Node expr = iniParser.parseExp();
+            while (expr != null) {
+                expr.eval(env);
+                expr = iniParser.parseExp();
+            }
 
-		env = new Environment();
-		BuiltIn.setGlobalEnv(env);
-		//
-		// populate the environment with BuiltIns and the code from ini.scm
-		//
-		BuiltIn.addBuiltIns(env);
-		env = new Environment(env);
-		BuiltIn.setGlobalEnv(env);
-		 //input everything from ini.scm into the environment
-		 try {
-			InputStream iniStream = new FileInputStream(ini_file);
-			Scanner iniScanner = new Scanner(iniStream);
-			Parser iniParser = new Parser(iniScanner);
-			Node iniRoot = iniParser.parseExp();
+        } catch (Exception e) {
+            System.err.println("Error loading " + ini_file + ": " + e);
+        }
 
-			Node expression = iniRoot;
-			while (expression.isPair()) {
-				expression.getCar().eval(env);
-				expression = expression.getCdr();
-			} 
-		}catch (Exception e) {
-    		System.err.println("Error loading " + ini_file + ": " + e);
-		}
-		 
+        // ✅ REPL loop
+        while (true) {
+            try {
+                System.out.print(prompt);
 
-		// Read-eval-print loop
+                Node root = parser.parseExp();
 
-		
-		root = parser.parseExp();
-		while (root != null) {
-			Node result = root.eval(env);
-			if (result != null) {
-				result.print(0);
-			}
-			root = parser.parseExp();
-		}
-		System.exit(0);
-	}
+                if (root == null) {
+                    System.out.println();
+                    break;
+                }
+
+                Node result = root.eval(env);
+
+                if (result != null) {
+                    result.print(0);
+                }
+
+            } catch (Exception e) {
+                System.out.println("Error: " + e.getMessage());
+            }
+        }
+
+        System.exit(0);
+    }
 }
